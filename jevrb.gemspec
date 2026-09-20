@@ -14,8 +14,8 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = ">= 3.2.0"
   spec.homepage = "https://github.com/maful/jev"
   spec.metadata = {
-    bug_tracker_uri: "https://github.com/maful/jev/issues",
-    rubygems_mfa_required: "true"
+    "bug_tracker_uri" => "https://github.com/maful/jev/issues",
+    "rubygems_mfa_required" => "true"
   }
 
   spec.files = Dir["LICENSE", "README.md", "lib/**/*.rb", "sig/**/*.rbs"]
