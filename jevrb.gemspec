@@ -12,9 +12,13 @@ Gem::Specification.new do |spec|
   spec.description = "Send typed questions to TypeSafe System One and receive typed Ruby response objects."
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
-  spec.metadata["rubygems_mfa_required"] = "true"
+  spec.homepage = "https://github.com/maful/jev"
+  spec.metadata = {
+    bug_tracker_uri: "https://github.com/maful/jev/issues",
+    rubygems_mfa_required: "true"
+  }
 
-  spec.files = Dir["CHANGELOG.md", "LICENSE.txt", "README.md", "lib/**/*.rb", "sig/**/*.rbs"]
+  spec.files = Dir["LICENSE", "README.md", "lib/**/*.rb", "sig/**/*.rbs"]
   spec.bindir = "exe"
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
