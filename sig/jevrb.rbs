@@ -1,0 +1,203 @@
+module Jevrb
+  type json_value = String | Integer | Float | bool | nil | Array[json_value] | Hash[String | Symbol, json_value]
+  type json_content = String | Array[json_value] | Hash[String | Symbol, json_value]
+  type question_key = String | Symbol
+  type answer = NoulAnswer | ChoiceAnswer | ScoreAnswer
+
+  VERSION: String
+  API_KEY_ENV: String
+  BASE_URL_ENV: String
+  DEFAULT_MODEL_ENV: String
+  DEFAULT_BASE_URL: String
+  DEFAULT_MODEL: String
+  DEFAULT_TIMEOUT: Float
+
+  class Error < StandardError
+  end
+
+  class ConfigurationError < Error
+  end
+
+  class APIError < Error
+    attr_reader status: Integer
+    attr_reader body: untyped
+    attr_reader headers: Hash[String, String]
+    attr_reader endpoint: String
+
+    def initialize: (status: Integer, body: untyped, headers: Hash[String, String], endpoint: String, ?message: String?) -> void
+    def request_id: () -> String?
+  end
+
+  class BadRequestError < APIError
+  end
+
+  class AuthenticationError < APIError
+  end
+
+  class PermissionDeniedError < APIError
+  end
+
+  class NotFoundError < APIError
+  end
+
+  class UnprocessableEntityError < APIError
+  end
+
+  class RateLimitError < APIError
+    def retry_after_ms: () -> Float?
+  end
+
+  class InternalServerError < APIError
+  end
+
+  class ConnectionError < Error
+    attr_reader endpoint: String
+
+    def initialize: (endpoint: String, ?message: String?) -> void
+  end
+
+  class TimeoutError < ConnectionError
+    attr_reader timeout: Float
+
+    def initialize: (endpoint: String, timeout: Float, ?message: String?) -> void
+  end
+
+  class ResponseValidationError < APIError
+    attr_reader field_path: String
+
+    def initialize: (status: Integer, body: untyped, headers: Hash[String, String], field_path: String, endpoint: String, ?message: String?) -> void
+  end
+
+  class Question
+    attr_reader type: String
+    attr_reader instructions: json_content
+    attr_reader criteria: untyped
+
+    def to_h: () -> Hash[Symbol, untyped]
+  end
+
+  class Noul < Question
+    CRITERIA_KEYS: Array[String]
+
+    def self.build: (instructions: json_content, ?criteria: Hash[String | Symbol | bool, json_content?]?) -> Noul
+  end
+
+  class Choice < Question
+    MAX_OPTIONS: Integer
+
+    def self.build: (instructions: json_content, criteria: Hash[String | Symbol, json_content?]) -> Choice
+  end
+
+  class Score < Question
+    MIN_LEVELS: Integer
+    MAX_LEVELS: Integer
+
+    def self.build: (instructions: json_content, criteria: Array[json_content]) -> Score
+  end
+
+  class Answer
+    attr_reader type: String
+  end
+
+  class NoulAnswer < Answer
+    attr_reader noul: Float
+
+    def self.from_hash: (Hash[String, untyped], path: String) -> NoulAnswer
+    def to_h: () -> { type: String, noul: Float }
+  end
+
+  class ChoiceAnswer < Answer
+    attr_reader choice: String
+    attr_reader probabilities: Hash[String, Float]
+    attr_reader confidence: Float
+
+    def self.from_hash: (Hash[String, untyped], path: String) -> ChoiceAnswer
+    def to_h: () -> { type: String, choice: String, probabilities: Hash[String, Float], confidence: Float }
+  end
+
+  class ScoreAnswer < Answer
+    attr_reader score: Float
+    attr_reader legend: Hash[Integer, json_content]
+    attr_reader probabilities: Hash[Integer, Float]
+    attr_reader confidence: Float
+
+    def self.from_hash: (Hash[String, untyped], path: String) -> ScoreAnswer
+    def to_h: () -> { type: String, score: Float, legend: Hash[Integer, json_content], probabilities: Hash[Integer, Float], confidence: Float }
+  end
+
+  class Usage
+    attr_reader input_tokens: Integer?
+    attr_reader output_tokens: Integer?
+
+    def self.from_hash: (Hash[String, untyped], ?path: String) -> Usage
+    def to_h: () -> { input_tokens: Integer?, output_tokens: Integer? }
+  end
+
+  class Result
+    ANSWER_CLASSES: Hash[String, singleton(NoulAnswer) | singleton(ChoiceAnswer) | singleton(ScoreAnswer)]
+
+    attr_reader model: String
+    attr_reader answers: Hash[question_key, answer]
+    attr_reader usage: Usage
+    attr_reader request_id: String?
+
+    def self.from_hash: (Hash[String, untyped], ?key_map: Hash[String, question_key], ?request_id: String?) -> Result
+    def nouls: () -> Hash[question_key, NoulAnswer]
+    def choices: () -> Hash[question_key, ChoiceAnswer]
+    def scores: () -> Hash[question_key, ScoreAnswer]
+    def to_h: () -> Hash[Symbol, untyped]
+  end
+
+  class RetryPolicy
+    DEFAULT_HTTP_STATUSES: Enumerable[Integer]
+
+    attr_reader max_retries: Integer
+    attr_reader backoff_initial: Float
+    attr_reader backoff_max: Float
+    attr_reader backoff_jitter: Float
+    attr_reader http_statuses: Enumerable[Integer]
+    attr_reader respect_retry_after: bool
+    attr_reader retry_connection_errors: bool
+    attr_reader retry_timeout_errors: bool
+    attr_reader timeout: Float?
+
+    def initialize: (
+      ?max_retries: Integer,
+      ?backoff_initial: Float,
+      ?backoff_max: Float,
+      ?backoff_jitter: Float,
+      ?http_statuses: Enumerable[Integer],
+      ?respect_retry_after: bool,
+      ?retry_connection_errors: bool,
+      ?retry_timeout_errors: bool,
+      ?timeout: Float?,
+      ?sleeper: ^(Float) -> void,
+      ?random: untyped,
+      ?clock: ^() -> Float
+    ) -> void
+
+    def execute: [T] () { () -> T } -> T
+    def retryable?: (Error) -> bool
+    def retry_delay: (Error, Integer) -> Float
+  end
+
+  class Client
+    attr_reader api_key: String
+    attr_reader base_url: String
+    attr_reader model: String
+    attr_reader timeout: Float
+    attr_reader retry_policy: RetryPolicy
+
+    def initialize: (
+      ?api_key: String,
+      ?base_url: String,
+      ?model: String,
+      ?timeout: Float,
+      ?retry_policy: RetryPolicy?
+    ) -> void
+
+    def system_one: (json_content state, questions: Hash[question_key, Question], ?model: String?) -> Result
+  end
+end
+
+module Jev = Jevrb
